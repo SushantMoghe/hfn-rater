@@ -1,0 +1,378 @@
+<!doctype html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<title>HFN Story Rater</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;700&family=Tiro+Devanagari+Hindi&display=swap">
+<style>
+/* Layout: one narrow column for a phone; sticky header, story + author pickers, then a score sheet of tap rows. */
+:root{
+  --bg:#F3F4F8; --card:#FFFFFF; --ink:#1D2042; --muted:#5E6286; --line:#DCDEEA;
+  --accent:#34398F; --accent-ink:#FFFFFF; --marigold:#D98A0B; --soft:#E8E9F6;
+  --good:#1F7A4D; --warn:#A65F00; --bad:#A3322A;
+  --f-body:"Mukta","Noto Sans Devanagari",system-ui,sans-serif;
+  --f-disp:"Tiro Devanagari Hindi","Noto Serif Devanagari",Georgia,serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12142A; --card:#1B1E3A; --ink:#ECEDF8; --muted:#A3A6C8; --line:#2F3360;
+  --accent:#8F95F2; --accent-ink:#12142A; --marigold:#F2B13D; --soft:#262A52;
+  --good:#5BC98E; --warn:#F2B13D; --bad:#F07A70; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12142A; --card:#1B1E3A; --ink:#ECEDF8; --muted:#A3A6C8; --line:#2F3360;
+  --accent:#8F95F2; --accent-ink:#12142A; --marigold:#F2B13D; --soft:#262A52;
+  --good:#5BC98E; --warn:#F2B13D; --bad:#F07A70; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45;margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--accent)}
+.wrap{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 96px;display:flex;flex-direction:column;gap:14px}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--accent);color:var(--accent-ink)}
+header .in{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;display:flex;align-items:center;gap:10px}
+header h1{font-family:var(--f-disp);font-weight:400;font-size:20px;margin:0;flex:1;line-height:1.2}
+header small{display:block;font-family:var(--f-body);font-size:12px;opacity:.85}
+.tabs{display:flex;gap:6px}
+.tabs button{background:transparent;color:var(--accent-ink);border:1px solid currentColor;border-radius:20px;padding:4px 12px;font:500 14px var(--f-body);opacity:.75;cursor:pointer}
+.tabs button[aria-selected="true"]{opacity:1;background:var(--accent-ink);color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+label.lb{font-size:13px;color:var(--muted);letter-spacing:.03em;text-transform:uppercase;font-weight:500}
+select,input[type=text],textarea{width:100%;font:16px var(--f-body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px}
+textarea{min-height:70px;resize:vertical}
+.authors{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.authors button{position:relative;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:8px 2px;font:500 14px var(--f-body);cursor:pointer;line-height:1.1}
+.authors button span{display:block;font-size:11px;color:var(--muted);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.authors button.done{border-color:var(--good)}
+.authors button.done::after{content:"✓";position:absolute;top:2px;right:5px;font-size:11px;color:var(--good)}
+.authors button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.authors button.on span{color:var(--accent-ink)}
+.ver{display:flex;flex-direction:column;gap:2px}
+.ver .t{font-family:var(--f-disp);font-size:21px;line-height:1.3}
+.ver .m{font-size:14px;color:var(--muted)}
+.pill{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;background:var(--soft);color:var(--ink);margin-left:4px}
+.row{display:flex;flex-direction:column;gap:6px;padding-block:8px;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.row .q{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.row .q b{font-weight:700}
+.row .q i{font-style:normal;font-size:13px;color:var(--muted);text-align:right}
+.seg{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.seg.ten{grid-template-columns:repeat(10,1fr);gap:4px}
+.seg button{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:9px;min-height:44px;font:700 17px var(--f-body);cursor:pointer;font-variant-numeric:tabular-nums}
+.seg.ten button{min-height:40px;font-size:15px;padding:0}
+.seg button.on{background:var(--marigold);border-color:var(--marigold);color:#1D1300}
+.total{display:flex;align-items:center;gap:12px;background:var(--soft);border-radius:10px;padding:10px 12px}
+.total .n{font:700 28px var(--f-body);font-variant-numeric:tabular-nums}
+.grade{font-weight:700;padding:2px 10px;border-radius:12px;border:1.5px solid currentColor}
+.gA,.gB{color:var(--good)} .gC{color:var(--warn)} .gD,.gE{color:var(--bad)}
+.actions{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--card);border-top:1px solid var(--line);padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+.actions .in{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:10px;display:flex;gap:8px}
+.btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;min-height:46px;font:700 15px var(--f-body);border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);text-decoration:none;cursor:pointer;padding:0 10px;text-align:center}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.wa{background:#1E8E4E;border-color:#1E8E4E;color:#FFFFFF}
+.btn:focus-visible,.seg button:focus-visible,.authors button:focus-visible,select:focus-visible{outline:3px solid var(--marigold);outline-offset:2px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:20px;font-size:14px;z-index:9;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:6px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.03em}
+td.c,th.c{text-align:center}
+.note{font-size:13px;color:var(--muted);margin:0}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px}
+.btnrow .btn{flex:1 1 140px}
+.sync{font-size:12px;opacity:.85}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+
+<header><div class="in">
+  <h1>HFN Story Rater<small id="who">10 components · 1 to 5</small></h1>
+  <div class="tabs" role="tablist">
+    <button id="tRate" role="tab" aria-selected="true">Rate</button>
+    <button id="tMine" role="tab" aria-selected="false">My list</button>
+    <button id="tAll" role="tab" aria-selected="false" hidden>All</button>
+  </div>
+</div></header>
+
+<div class="wrap" id="pRate">
+  <div class="card">
+    <label class="lb" for="reader">Your name</label>
+    <input type="text" id="reader" placeholder="Type your name once" autocomplete="name">
+    <label class="lb" for="story">Story</label>
+    <select id="story"></select>
+    <label class="lb">Author style <span id="prog" class="pill"></span></label>
+    <div class="authors" id="authors"></div>
+  </div>
+
+  <div class="card">
+    <div class="ver" id="ver"></div>
+  </div>
+
+  <div class="card" id="sheet"></div>
+
+  <div class="card">
+    <div class="total"><span class="n" id="tot">0/50</span><span id="grd" class="grade" hidden></span><span class="note" id="filled"></span></div>
+    <label class="lb">Gut feeling (1–10)</label>
+    <div class="seg ten" id="gut"></div>
+    <label class="lb" for="remarks">Remarks</label>
+    <textarea id="remarks" placeholder="What worked, what to fix (Hindi or English)"></textarea>
+  </div>
+</div>
+
+<div class="wrap" id="pMine" hidden>
+  <div class="card">
+    <label class="lb" for="story2">Story</label>
+    <select id="story2"></select>
+    <div class="tbl"><table id="mineTbl"></table></div>
+    <div class="btnrow">
+      <a class="btn wa" id="waStory" href="#" target="_blank" rel="noopener">Share story on WhatsApp</a>
+    </div>
+  </div>
+  <div class="card">
+    <label class="lb">All my ratings</label>
+    <p class="note" id="mineCount"></p>
+    <div class="btnrow">
+      <button class="btn" id="dlCsv">Download Excel (CSV)</button>
+      <button class="btn ghost" id="cpCsv">Copy as table</button>
+    </div>
+    <p class="note">The CSV opens in Excel with Hindi intact. Upload it in the project chat, or just share on WhatsApp.</p>
+  </div>
+</div>
+
+<div class="wrap" id="pAll" hidden>
+  <div class="card">
+    <label class="lb" for="story3">Story</label>
+    <select id="story3"></select>
+    <p class="note" id="allNote"></p>
+    <div class="tbl"><table id="allTbl"></table></div>
+  </div>
+</div>
+
+<div class="actions" id="bar"><div class="in">
+  <button class="btn" id="save">Save &amp; next</button>
+  <a class="btn wa" id="waOne" href="#" target="_blank" rel="noopener">WhatsApp</a>
+</div></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ============================================================
+   STORY LIST — add a new Transform batch by adding one block
+   per story below (same shape). v = {code:[version title, words, Claude pick]}.
+   ============================================================ */
+const STORIES = [
+ {id:"D06 v2",title:"हिमालय की चोटी · अगला क़दम",bucket:"B07 Strength & Perseverance",pdf:"D06_v2_Himalaya_Ki_Choti.pdf",v:{A1:["दस रुपये की लाठी",350,""],A2:["अगला पत्थर",297,""],A3:["\"बस यह वाला\"",297,"#3"],A4:["टक... टक... लाठी",252,""],A5:["दोपहर का चार बजे",306,""],A6:["एक पत्थर",229,"#1"],A7:["अगला क़दम",333,""],A8:["उन्नीस किलो",329,""],A9:["पहाड़ का फूल",309,""],A10:["तीन यात्री",317,"#2"]}},
+ {id:"D08 v2",title:"सेठ के सौ करोड़, भिखारी के सौ रुपये",bucket:"B05 Faith & Devotion",pdf:"D08_v2_Seth_Aur_Bhikhari.pdf",v:{A1:["सौ रुपये का नोट",422,"#2"],A2:["पहली बोनी",361,""],A3:["\"मिलने आया हूँ\"",312,""],A4:["भोर की घंटी",271,""],A5:["सुबह पाँच बजे",343,"#3"],A6:["सौ का नोट",253,""],A7:["प्रेम या माँग",346,""],A8:["सौ करोड़, सौ रुपये",335,"#1"],A9:["सात मंदिर और एक दीया",336,""],A10:["तीन प्रार्थनाएँ",370,""]}},
+ {id:"D10 v2",title:"तितली का संघर्ष",bucket:"B10 Nature & Wonder",pdf:"D10_v2_Titli_Ka_Sangharsh.pdf",v:{A1:["बीस रुपये की कैंची",364,""],A2:["धैर्य की कैंची",315,""],A3:["\"ख़ुद खोल\"",294,"#1"],A4:["पीली तितली",265,""],A5:["बालकनी का गमला",316,""],A6:["कैंची",252,""],A7:["तितली का संघर्ष",318,""],A8:["तीन घंटे, बीस मिनट",344,"#3"],A9:["सुनहरे पंख",323,""],A10:["तीन माली",359,"#2"]}},
+ {id:"D13 v2",title:"जूते का कंकड़",bucket:"B02 Mind & Inner Peace",pdf:"D13_v2_Kankad_Jute_Mein.pdf",v:{A1:["दो पैसे का कंकड़",339,""],A2:["रुकने की जीत",295,""],A3:["\"पहले जूता झाड़\"",300,"#1"],A4:["लाल झंडी",269,""],A5:["इतवार की सैर",354,"#2"],A6:["तीन कंकड़",227,"#3"],A7:["जूते का कंकड़",337,""],A8:["एक मिनट, सात दिन",337,""],A9:["पहाड़ी की झंडी",338,""],A10:["तीन जूते",371,""]}},
+ {id:"D15 v1",title:"वनमुत्तस्सी लक्ष्मीकुट्टी",bucket:"B01 Real Heroes & True Lives",pdf:"D15_v1_Lakshmikutty.pdf",v:{A1:["ताड़ के पत्तों की छत",321,""],A2:["माँ की पोटली",285,""],A3:["\"दस किलोमीटर\"",287,"#2"],A4:["पत्तों की गंध",221,""],A5:["मेहमान की थाली",289,""],A6:["सिल-बट्टा",189,""],A7:["जंगल की दादी",318,""],A8:["पाँच सौ और एक",299,"#1"],A9:["जंगल की दादी",308,""],A10:["तीन मेहमान",325,"#3"]}},
+ {id:"D16 v1",title:"जमुना टुडू: जंगल की राखी",bucket:"B01 Real Heroes & True Lives",pdf:"D16_v1_Jamuna_Tudu.pdf",v:{A1:["दो रुपये की राखी",305,""],A2:["पेड़ की कलाई",271,""],A3:["\"पेड़ भी घर के हैं\"",291,"#1"],A4:["साल का गीत",233,""],A5:["रसोई का चूल्हा",311,"#3"],A6:["राखी",205,""],A7:["जंगल की राखी",288,""],A8:["अठारह पेड़",316,"#2"],A9:["साल का जंगल",311,""],A10:["तीन उत्तर",335,""]}},
+ {id:"D17 v1",title:"के. आर. उषाकुमारी: नाव वाली टीचर",bucket:"B01 Real Heroes & True Lives",pdf:"D17_v1_Usha_Kumari.pdf",v:{A1:["एक चाबी",304,""],A2:["नाव की पतवार",277,""],A3:["\"कल आओगी?\"",277,"#1"],A4:["छप-छप नाव",228,""],A5:["स्टाफ़-रूम की चाय",316,"#2"],A6:["पतवार और झाड़ू",179,""],A7:["नाव वाली टीचर",313,""],A8:["चौदह चिट्ठियाँ",324,""],A9:["जंगल का स्कूल",325,""],A10:["तीन नाम",336,"#3"]}}
+];
+/* Author panel (locked style names). Change here if the panel changes. */
+const AUTHORS = [
+ ["A1","Premchand","प्रेमचंद","Village Heart · सच्चा गाँव"],
+ ["A2","Sudarshan","सुदर्शन","Quiet Moral Turn · नैतिक मोड़"],
+ ["A3","Guleri","गुलेरी","Hidden Sacrifice · छुपा त्याग"],
+ ["A4","Renu","रेणु","Folk Music · लोक-धुन"],
+ ["A5","Bhisham","भीष्म साहनी","Family Mirror · घर का आईना"],
+ ["A6","Gulzar","गुलज़ार","Poetic Snapshot · काव्य-झलक"],
+ ["A7","Usha K.","उषा कलवानी","Pause & Feel · रुको-महसूस करो"],
+ ["A8","O. Henry","ओ. हेनरी","Twist of Love · प्रेम का मोड़"],
+ ["A9","Wilde","ऑस्कर वाइल्ड","Fairy-Tale Grace · परी-कथा"],
+ ["A10","Tolstoy","टॉलस्टॉय","Life-Question Parable · जीवन-प्रश्न"]
+];
+/* 10 components from HFN_Rating_Rubric.xlsx */
+const COMP = [
+ ["Hook","शुरुआत","Does the first line pull you in?"],
+ ["Theme","संदेश","One clear, sharp message?"],
+ ["Emotion","भाव","Did it touch your heart?"],
+ ["Language","भाषा","Simple and human?"],
+ ["Tone","लहजा","Says “we”, no preaching?"],
+ ["Structure","बनावट","Flows with no padding?"],
+ ["Ending","अंत","Does the last line stay?"],
+ ["Characters","पात्र","Real people, no props?"],
+ ["Imagery","दृश्य","One object you can see?"],
+ ["Relatable","जुड़ाव","Would you forward it?"]
+];
+const grade = t => t>=43?"A":t>=36?"B":t>=29?"C":t>=22?"D":"E";
+
+/* ---------- state ---------- */
+const LS="hfn_rater_v1";
+let R={};            // key "D06 v2|A6" -> {story,author,s:[..10],gut,remarks,ts}
+let reader="";
+let cur={story:STORIES[0].id, author:"A1"};
+let draft=null;
+let db=null, uid=null;
+const $=id=>document.getElementById(id);
+function lsGet(){try{const o=JSON.parse(localStorage.getItem(LS)||"{}");R=o.R||{};reader=o.reader||"";if(o.cur&&STORIES.some(s=>s.id===o.cur.story))cur=o.cur;}catch(e){}}
+function lsPut(){try{localStorage.setItem(LS,JSON.stringify({R,reader,cur}))}catch(e){}}
+const key=(s,a)=>s+"|"+a;
+const dbKey=k=>k.replace(/[^A-Za-z0-9]/g,"_");
+const storyOf=id=>STORIES.find(s=>s.id===id);
+const authOf=c=>AUTHORS.find(a=>a[0]===c);
+const total=r=>r.s.reduce((a,b)=>a+(b||0),0);
+const nFilled=r=>r.s.filter(Boolean).length;
+
+/* ---------- render: rate ---------- */
+function fillSelect(el,val){
+  el.innerHTML=STORIES.map(s=>{const d=AUTHORS.filter(a=>R[key(s.id,a[0])]).length;
+    return `<option value="${s.id}">${s.id} · ${s.title}${d?`  (${d}/10)`:""}</option>`}).join("");
+  el.value=val;
+}
+function loadDraft(){
+  const r=R[key(cur.story,cur.author)];
+  draft=r?JSON.parse(JSON.stringify(r)):{story:cur.story,author:cur.author,s:Array(10).fill(0),gut:0,remarks:""};
+}
+function renderRate(){
+  fillSelect($("story"),cur.story);
+  const st=storyOf(cur.story);
+  const done=AUTHORS.filter(a=>R[key(st.id,a[0])]).length;
+  $("prog").textContent=`${done}/10 rated`;
+  $("authors").innerHTML=AUTHORS.map(a=>`<button data-a="${a[0]}" class="${a[0]===cur.author?"on":""} ${R[key(st.id,a[0])]?"done":""}" aria-label="${a[0]} ${a[1]}">${a[0]}<span>${a[1]}</span></button>`).join("");
+  const a=authOf(cur.author), v=st.v[cur.author]||["",0,""];
+  $("ver").innerHTML=`<div class="m">${a[0]} · ${a[2]} (${a[1]})${v[2]?`<span class="pill">Claude ${v[2]}</span>`:""}</div>
+    <div class="t">${esc(v[0])}</div><div class="m">${a[3]} · ${v[1]} words · ${esc(st.bucket)}</div>`;
+  $("sheet").innerHTML=COMP.map((c,i)=>`<div class="row"><div class="q"><b>${i+1}. ${c[0]} · ${c[1]}</b><i>${c[2]}</i></div>
+    <div class="seg" data-i="${i}">${[1,2,3,4,5].map(n=>`<button data-n="${n}" class="${draft.s[i]===n?"on":""}" aria-label="${c[0]} ${n}">${n}</button>`).join("")}</div></div>`).join("");
+  $("gut").innerHTML=[1,2,3,4,5,6,7,8,9,10].map(n=>`<button data-n="${n}" class="${draft.gut===n?"on":""}" aria-label="Gut ${n}">${n}</button>`).join("");
+  $("remarks").value=draft.remarks||"";
+  $("reader").value=reader;
+  renderTotal();
+}
+function renderTotal(){
+  const t=total(draft), f=nFilled(draft);
+  $("tot").textContent=`${t}/50`;
+  const g=$("grd");
+  if(f===10){g.hidden=false;g.textContent=grade(t);g.className="grade g"+grade(t);}else g.hidden=true;
+  $("filled").textContent=f===10?(draft.gut?`Gut ${draft.gut}/10`:"Add gut score"):`${f}/10 filled`;
+  $("waOne").href=waLink(oneText(draft));
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+/* ---------- text for WhatsApp ---------- */
+function waLink(t){return "https://wa.me/?text="+encodeURIComponent(t)}
+function oneText(r){
+  const st=storyOf(r.story), a=authOf(r.author), v=st.v[r.author]||[""];
+  const parts=COMP.map((c,i)=>`${c[0]} ${r.s[i]||"-"}`);
+  const lines=[`*HFN Story Rating*${reader?" · "+reader:""}`,
+    `${st.id} · ${st.title}`,
+    `${a[0]} ${a[1]} · ${a[3]}`, `“${v[0]}”`, "",
+    parts.slice(0,5).join(" | "), parts.slice(5).join(" | "), "",
+    `*Total ${total(r)}/50*${nFilled(r)===10?" ("+grade(total(r))+")":""} · Gut ${r.gut||"-"}/10`];
+  if(r.remarks) lines.push(`Remarks: ${r.remarks}`);
+  return lines.join("\n");
+}
+function storyText(sid){
+  const st=storyOf(sid);
+  const rows=AUTHORS.map(a=>R[key(sid,a[0])]).filter(Boolean).sort((x,y)=>total(y)-total(x));
+  const lines=[`*HFN Story Rating*${reader?" · "+reader:""}`,`${st.id} · ${st.title}`,`${rows.length}/10 styles rated (best first)`, ""];
+  rows.forEach((r,i)=>{const a=authOf(r.author);
+    lines.push(`${i+1}. ${a[0]} ${a[1]}: *${total(r)}/50* ${nFilled(r)===10?grade(total(r)):""} · Gut ${r.gut||"-"}`);
+    lines.push(`   ${COMP.map((c,j)=>c[0].slice(0,4)+" "+(r.s[j]||"-")).join(", ")}`);
+    if(r.remarks) lines.push(`   “${r.remarks}”`);});
+  return lines.join("\n");
+}
+
+/* ---------- my list ---------- */
+function renderMine(){
+  fillSelect($("story2"),cur.story);
+  const sid=$("story2").value;
+  const rows=AUTHORS.map(a=>[a,R[key(sid,a[0])]]);
+  $("mineTbl").innerHTML=`<tr><th>Style</th><th class="c">Total</th><th class="c">Gr</th><th class="c">Gut</th><th>Remarks</th></tr>`+
+    rows.map(([a,r])=>`<tr><td>${a[0]} ${a[1]}</td>${r?`<td class="c"><b>${total(r)}</b></td><td class="c">${nFilled(r)===10?grade(total(r)):"–"}</td><td class="c">${r.gut||"–"}</td><td>${esc(r.remarks||"")}</td>`:`<td class="c">–</td><td class="c"></td><td class="c"></td><td></td>`}</tr>`).join("");
+  $("waStory").href=waLink(storyText(sid));
+  const n=Object.keys(R).length;
+  $("mineCount").textContent=`${n} rating${n===1?"":"s"} saved on this phone${db?" and synced":""}.`;
+}
+function csv(){
+  const head=["Reader","Story No","Story","Code","Author","Style Name","Version title","Words","Claude Top 3",...COMP.map(c=>c[0]),"Total /50","Grade","Gut /10","Remarks","Saved at"];
+  const q=x=>{x=x==null?"":String(x);return /[",\n]/.test(x)?`"${x.replace(/"/g,'""')}"`:x};
+  const out=[head.map(q).join(",")];
+  STORIES.forEach(st=>AUTHORS.forEach(a=>{const r=R[key(st.id,a[0])]; if(!r) return; const v=st.v[a[0]]||["",0,""];
+    out.push([reader,st.id,st.title,a[0],a[1],a[3],v[0],v[1],v[2],...r.s.map(x=>x||""),total(r),nFilled(r)===10?grade(total(r)):"",r.gut||"",r.remarks||"",new Date(r.ts).toLocaleString()].map(q).join(","));}));
+  return out.join("\r\n");
+}
+
+/* ---------- all readers (owner) ---------- */
+let ALL={};
+function renderAll(){
+  fillSelect($("story3"),$("story3").value||cur.story);
+  const sid=$("story3").value;
+  const people=Object.keys(ALL);
+  $("allNote").textContent=`${people.length} reader${people.length===1?"":"s"} have saved ratings. Average total /50, best first.`;
+  const agg=AUTHORS.map(a=>{const rs=people.map(p=>ALL[p][dbKey(key(sid,a[0]))]).filter(Boolean);
+    const avg=rs.length?rs.reduce((s,r)=>s+total(r),0)/rs.length:null;
+    const gut=rs.filter(r=>r.gut).length?rs.reduce((s,r)=>s+(r.gut||0),0)/rs.filter(r=>r.gut).length:null;
+    return {a,n:rs.length,avg,gut};}).sort((x,y)=>(y.avg??-1)-(x.avg??-1));
+  $("allTbl").innerHTML=`<tr><th>Style</th><th class="c">Avg</th><th class="c">Gut</th><th class="c">Readers</th></tr>`+
+    agg.map(x=>`<tr><td>${x.a[0]} ${x.a[1]}</td><td class="c"><b>${x.avg==null?"–":x.avg.toFixed(1)}</b></td><td class="c">${x.gut==null?"–":x.gut.toFixed(1)}</td><td class="c">${x.n}</td></tr>`).join("");
+}
+
+/* ---------- actions ---------- */
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("show"),1800)}
+async function persist(r){
+  R[key(r.story,r.author)]=r; lsPut();
+  if(db&&uid){try{await db.doc("ratings/"+uid).set({...Object.fromEntries(Object.entries(R).map(([k,v])=>[dbKey(k),v])),_reader:reader,_ts:Date.now()});}catch(e){toast("Saved on phone (sync failed)");return false}}
+  return true;
+}
+document.addEventListener("click",async e=>{
+  const ab=e.target.closest("#authors button"); if(ab){cur.author=ab.dataset.a;lsPut();loadDraft();renderRate();return}
+  const sb=e.target.closest("#sheet .seg button"); if(sb){const i=+sb.parentNode.dataset.i,n=+sb.dataset.n;draft.s[i]=draft.s[i]===n?0:n;
+    sb.parentNode.querySelectorAll("button").forEach(b=>b.classList.toggle("on",+b.dataset.n===draft.s[i]));renderTotal();return}
+  const gb=e.target.closest("#gut button"); if(gb){const n=+gb.dataset.n;draft.gut=draft.gut===n?0:n;
+    $("gut").querySelectorAll("button").forEach(b=>b.classList.toggle("on",+b.dataset.n===draft.gut));renderTotal();return}
+});
+$("story").onchange=e=>{cur.story=e.target.value;const st=storyOf(cur.story);
+  cur.author=(AUTHORS.find(a=>!R[key(st.id,a[0])])||AUTHORS[0])[0];lsPut();loadDraft();renderRate();scrollTo(0,0)};
+$("remarks").oninput=e=>{draft.remarks=e.target.value;renderTotal()};
+$("reader").onchange=e=>{reader=e.target.value.trim();lsPut();renderTotal()};
+$("save").onclick=async()=>{
+  if(nFilled(draft)<10){toast(`Fill all 10 (now ${nFilled(draft)}/10)`);return}
+  draft.ts=Date.now(); draft.remarks=$("remarks").value.trim();
+  const ok=await persist(draft); if(ok) toast(`Saved ${draft.author} · ${total(draft)}/50`);
+  const i=AUTHORS.findIndex(a=>a[0]===cur.author);
+  const nxt=AUTHORS.slice(i+1).concat(AUTHORS.slice(0,i)).find(a=>!R[key(cur.story,a[0])]);
+  if(nxt){cur.author=nxt[0];loadDraft();renderRate();scrollTo({top:0,behavior:"smooth"})} else {renderRate();toast("All 10 rated. Share from My list.")}
+  lsPut();
+};
+$("story2").onchange=()=>renderMine();
+$("story3").onchange=()=>renderAll();
+$("dlCsv").onclick=async()=>{
+  const name=`HFN_Ratings_${(reader||"reader").replace(/\W+/g,"_")}_${new Date().toISOString().slice(0,10)}.csv`;
+  const blob=new Blob(["﻿"+csv()],{type:"text/csv;charset=utf-8"});
+  try{const dl=window.claude&&await claude.use("downloads");
+    if(dl){await dl.save({filename:name,data:blob});toast("Saved");return}}catch(e){if(e&&e.code==="declined")return}
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();
+};
+$("cpCsv").onclick=async()=>{const t=csv().replace(/,/g,"\t");
+  try{await navigator.clipboard.writeText(t);toast("Copied. Paste into Excel.")}catch(e){toast("Copy not allowed here")}};
+function tab(which){
+  [["tRate","pRate"],["tMine","pMine"],["tAll","pAll"]].forEach(([t,p])=>{const on=t===which;$(t).setAttribute("aria-selected",on);$(p).hidden=!on});
+  $("bar").hidden=which!=="tRate";
+  if(which==="tMine")renderMine(); if(which==="tAll")renderAll();
+  scrollTo(0,0);
+}
+$("tRate").onclick=()=>tab("tRate"); $("tMine").onclick=()=>tab("tMine"); $("tAll").onclick=()=>tab("tAll");
+
+/* ---------- boot ---------- */
+lsGet(); loadDraft(); renderRate();
+
+/* Cloud sync when opened from the claude.ai link; works fully offline without it. */
+(async()=>{
+  if(!window.claude||!claude.use) return;
+  try{
+    const user=await claude.use("user"); db=await claude.use("db");
+    if(!user||!db){db=null;return}
+    uid=await user.id(); if(!uid){db=null;return}
+    if(!reader){try{const me=await user.me();if(me&&me.name){reader=me.name;lsPut();$("reader").value=reader}}catch(e){}}
+    const snap=await db.doc("ratings/"+uid).get();
+    if(snap.exists){const d=snap.data()||{};
+      Object.entries(d).forEach(([k,v])=>{if(k[0]==="_"||!v||!v.story)return;const lk=key(v.story,v.author);
+        if(!R[lk]||(v.ts||0)>(R[lk].ts||0))R[lk]=v;});
+      lsPut(); loadDraft(); renderRate();}
+    $("who").textContent="10 components · synced";
+    if(await user.isOwner()){
+      $("tAll").hidden=false;
+      db.collection("ratings").onSnapshot(qs=>{ALL={};qs.docs.forEach(d=>ALL[d.id]=d.data()||{});if(!$("pAll").hidden)renderAll()},()=>{});
+    }
+  }catch(e){db=null}
+})();
+</script>
+
+</body></html>
